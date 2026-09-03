@@ -1,29 +1,28 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Shield, Loader2, CheckCircle, AlertCircle, User, Lock } from 'lucide-react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Eye, EyeOff, Shield, Loader2, CheckCircle, AlertCircle, User, Lock, Sparkles, Check, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
 
 export default function Login() {
+  const navigate = useNavigate()
+  const { login, loading } = useAuth()
+  const { addToast } = useToast()
+
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [captchaChecked, setCaptchaChecked] = useState(false)
+  const [captchaVerifying, setCaptchaVerifying] = useState(false)
+  const [captchaError, setCaptchaError] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const [apiError, setApiError] = useState('')
-  const { login, loading } = useAuth()
-  const { addToast } = useToast()
-  const navigate = useNavigate()
+  const [loginSuccess, setLoginSuccess] = useState(false)
 
   const validateUsername = (value) => {
     if (!value.trim()) return 'Username or email is required.'
-    if (value.includes('@')) {
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address.'
-    } else {
-      if (value.trim().length < 3) return 'Username must be at least 3 characters.'
-      if (!/^[a-zA-Z0-9_]+$/.test(value.trim())) return 'Only letters, numbers, and underscores allowed.'
-    }
     return ''
   }
 
@@ -37,42 +36,76 @@ export default function Login() {
     const v = e.target.value
     setUsername(v)
     setApiError('')
-    if (touched.username) setErrors(p => ({ ...p, username: validateUsername(v) }))
+    setLoginSuccess(false)
+    if (touched.username) setErrors((p) => ({ ...p, username: validateUsername(v) }))
   }
 
   const handlePasswordChange = (e) => {
     const v = e.target.value
     setPassword(v)
     setApiError('')
-    if (touched.password) setErrors(p => ({ ...p, password: validatePassword(v) }))
+    setLoginSuccess(false)
+    if (touched.password) setErrors((p) => ({ ...p, password: validatePassword(v) }))
   }
 
   const handleUsernameBlur = () => {
-    setTouched(p => ({ ...p, username: true }))
-    setErrors(p => ({ ...p, username: validateUsername(username) }))
+    setTouched((p) => ({ ...p, username: true }))
+    setErrors((p) => ({ ...p, username: validateUsername(username) }))
   }
 
   const handlePasswordBlur = () => {
-    setTouched(p => ({ ...p, password: true }))
-    setErrors(p => ({ ...p, password: validatePassword(password) }))
+    setTouched((p) => ({ ...p, password: true }))
+    setErrors((p) => ({ ...p, password: validatePassword(password) }))
+  }
+
+  const handleCaptchaClick = () => {
+    if (captchaChecked || captchaVerifying) return
+    setCaptchaVerifying(true)
+    setCaptchaError(false)
+
+    setTimeout(() => {
+      setCaptchaVerifying(false)
+      setCaptchaChecked(true)
+    }, 600)
+  }
+
+  const handleFillTestCredentials = () => {
+    setUsername('citizen123')
+    setPassword('Password@123')
+    setCaptchaChecked(true)
+    setCaptchaError(false)
+    setErrors({})
+    setTouched({})
+    setApiError('')
+    addToast('Filled seed test credentials: citizen123', 'info')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setApiError('')
+    setLoginSuccess(false)
 
     const uErr = validateUsername(username)
     const pErr = validatePassword(password)
     setTouched({ username: true, password: true })
     setErrors({ username: uErr, password: pErr })
-    if (uErr || pErr) return
 
-    const result = await login(username, password)
+    if (!captchaChecked) {
+      setCaptchaError(true)
+    }
+
+    if (uErr || pErr || !captchaChecked) return
+
+    const result = await login(username.trim(), password, 'dev-captcha-passed')
+
     if (result.success) {
-      addToast('Login successful! Welcome back.', 'success')
-      setTimeout(() => navigate('/dashboard'), 500)
+      setLoginSuccess(true)
+      addToast('Login successful! Redirecting...', 'success')
+      setTimeout(() => {
+        navigate('/dashboard')
+      }, 500)
     } else {
-      setApiError(result.error)
+      setApiError(result.message || result.error || 'Invalid username or password')
     }
   }
 
@@ -90,26 +123,12 @@ export default function Login() {
     color: 'var(--color-text)',
   })
 
-  const getPasswordStrength = () => {
-    if (!password) return null
-    let s = 0
-    if (password.length >= 6) s++
-    if (password.length >= 8) s++
-    if (/[A-Z]/.test(password)) s++
-    if (/[0-9]/.test(password)) s++
-    if (/[^A-Za-z0-9]/.test(password)) s++
-    if (s <= 1) return { label: 'Weak', color: 'var(--color-error)', width: '20%' }
-    if (s <= 2) return { label: 'Fair', color: 'var(--color-warning)', width: '40%' }
-    if (s <= 3) return { label: 'Good', color: 'var(--color-info)', width: '60%' }
-    if (s <= 4) return { label: 'Strong', color: 'var(--color-success)', width: '80%' }
-    return { label: 'Very Strong', color: 'var(--color-success)', width: '100%' }
-  }
-
-  const strength = getPasswordStrength()
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div className="w-full max-w-4xl rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row border animate-scale-in" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+      <div
+        className="w-full max-w-4xl rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row border animate-scale-in"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
+      >
         {/* Left panel */}
         <div className="hidden md:flex md:w-1/2 p-10 flex-col justify-between" style={{ backgroundColor: 'var(--color-primary-dark)' }}>
           <div>
@@ -127,7 +146,7 @@ export default function Login() {
               Secure access to citizen services. Your digital identity for all government interactions.
             </p>
             <div className="space-y-3">
-              {['Secure login with encryption', 'Access 200+ government services', 'Track applications in real-time'].map((item, i) => (
+              {['Secure login with JWT encryption', 'Access citizen profile and services', 'Real-time credentials authentication'].map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <CheckCircle className="w-4 h-4 shrink-0" style={{ color: 'var(--color-accent)' }} />
                   <span className="text-sm text-gray-300">{item}</span>
@@ -135,16 +154,31 @@ export default function Login() {
               ))}
             </div>
           </div>
-          <div className="h-1.5 flex rounded-full overflow-hidden">
-            <div className="flex-1" style={{ backgroundColor: 'var(--color-accent)' }} />
-            <div className="flex-1 bg-white" />
-            <div className="flex-1" style={{ backgroundColor: 'var(--color-green)' }} />
+
+          {/* Seed Test Credentials Quick Box */}
+          <div className="p-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Seed Test Account
+              </span>
+              <button
+                type="button"
+                onClick={handleFillTestCredentials}
+                className="text-xs px-2 py-1 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 transition-all font-medium"
+              >
+                Auto-Fill
+              </button>
+            </div>
+            <p className="text-xs text-gray-300 font-mono">
+              User: <span className="text-white font-semibold">citizen123</span><br />
+              Pass: <span className="text-white font-semibold">Password@123</span>
+            </p>
           </div>
         </div>
 
         {/* Right panel - form */}
         <div className="w-full md:w-1/2 p-8 md:p-10">
-          <div className="md:hidden flex items-center gap-3 mb-8">
+          <div className="md:hidden flex items-center gap-3 mb-6">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent)' }}>
               <Shield className="w-5 h-5 text-white" />
             </div>
@@ -157,11 +191,39 @@ export default function Login() {
           <h2 className="text-2xl font-bold mb-1" style={{ color: 'var(--color-text)' }}>Welcome Back</h2>
           <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>Sign in to access your citizen dashboard.</p>
 
+          {/* Mobile Test Credentials Quick Button */}
+          <div className="md:hidden mb-4 p-3 rounded-xl border flex items-center justify-between" style={{ backgroundColor: 'var(--color-input-bg)', borderColor: 'var(--color-border)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              Test: <strong>citizen123</strong> / <strong>Password@123</strong>
+            </span>
+            <button
+              type="button"
+              onClick={handleFillTestCredentials}
+              className="text-xs font-semibold px-2 py-1 rounded"
+              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+            >
+              Fill
+            </button>
+          </div>
+
           {apiError && (
-            <div className="mb-4 p-3 rounded-xl border flex items-center gap-2 text-sm" style={{ backgroundColor: 'var(--color-error-bg)', borderColor: 'var(--color-error-border)', color: 'var(--color-error)' }}>
+            <div
+              className="mb-4 p-3 rounded-xl border flex items-center gap-2 text-sm"
+              style={{ backgroundColor: 'var(--color-error-bg)', borderColor: 'var(--color-error-border)', color: 'var(--color-error)' }}
+            >
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span className="flex-1">{apiError}</span>
               <button onClick={() => setApiError('')} className="shrink-0 hover:opacity-70">✕</button>
+            </div>
+          )}
+
+          {loginSuccess && (
+            <div
+              className="mb-4 p-3 rounded-xl border flex items-center gap-2 text-sm"
+              style={{ backgroundColor: 'var(--color-success-bg)', borderColor: 'var(--color-success-border)', color: 'var(--color-success)' }}
+            >
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              <span className="flex-1">Login successful! Redirecting to dashboard...</span>
             </div>
           )}
 
@@ -172,7 +234,10 @@ export default function Login() {
                 Username / Email <span style={{ color: 'var(--color-error)' }}>*</span>
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: hasError('username') ? 'var(--color-error)' : 'var(--color-text-muted)' }} />
+                <User
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                  style={{ color: hasError('username') ? 'var(--color-error)' : 'var(--color-text-muted)' }}
+                />
                 <input
                   id="username"
                   type="text"
@@ -200,7 +265,10 @@ export default function Login() {
                 Password <span style={{ color: 'var(--color-error)' }}>*</span>
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: hasError('password') ? 'var(--color-error)' : 'var(--color-text-muted)' }} />
+                <Lock
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                  style={{ color: hasError('password') ? 'var(--color-error)' : 'var(--color-text-muted)' }}
+                />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -210,26 +278,20 @@ export default function Login() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   aria-invalid={hasError('password')}
-                  aria-describedby={hasError('password') ? 'password-error' : 'password-strength'}
+                  aria-describedby={hasError('password') ? 'password-error' : undefined}
                   className={inputCls('password') + ' pl-10 pr-12'}
                   style={inputStyle('password')}
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                  style={{ color: 'var(--color-text-muted)' }}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
-
-              {password && strength && (
-                <div id="password-strength" className="mt-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Password strength</span>
-                    <span className="text-xs font-medium" style={{ color: strength.color }}>{strength.label}</span>
-                  </div>
-                  <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-border)' }}>
-                    <div className="h-full rounded-full transition-all duration-300" style={{ width: strength.width, backgroundColor: strength.color }} />
-                  </div>
-                </div>
-              )}
 
               {hasError('password') && (
                 <p id="password-error" className="flex items-center gap-1 mt-1.5 text-xs" style={{ color: 'var(--color-error)' }} role="alert">
@@ -241,13 +303,66 @@ export default function Login() {
             {/* Remember / Forgot */}
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <input type="checkbox" checked={rememberMe} onChange={e => setRememberMe(e.target.checked)} className="w-4 h-4 rounded" style={{ accentColor: 'var(--color-accent)' }} />
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="w-4 h-4 rounded"
+                  style={{ accentColor: 'var(--color-accent)' }}
+                />
                 <span className="text-sm group-hover:underline" style={{ color: 'var(--color-text-muted)' }}>Remember me</span>
               </label>
-              <button type="button" className="text-sm font-medium hover:underline" style={{ color: 'var(--color-accent)' }}>
+              <Link
+                to="/forgot-password"
+                className="text-sm font-medium hover:underline"
+                style={{ color: 'var(--color-accent)' }}
+              >
                 Forgot Password?
-              </button>
+              </Link>
             </div>
+
+            {/* I am not a robot CAPTCHA Widget */}
+            <div
+              onClick={handleCaptchaClick}
+              className={`p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none flex items-center justify-between ${
+                captchaError ? 'border-red-400 bg-red-50/50 dark:bg-red-950/20' : 'hover:border-gray-400'
+              }`}
+              style={{
+                backgroundColor: 'var(--color-input-bg)',
+                borderColor: captchaError ? 'var(--color-error)' : 'var(--color-border)',
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-7 h-7 rounded-md border flex items-center justify-center transition-all ${
+                    captchaChecked
+                      ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                      : 'border-gray-400 hover:border-gray-600 bg-white dark:bg-gray-800'
+                  }`}
+                >
+                  {captchaVerifying && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
+                  {captchaChecked && <Check className="w-4 h-4 stroke-[3]" />}
+                </div>
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>
+                  I'm not a robot
+                </span>
+              </div>
+
+              {/* reCAPTCHA Brand Logo */}
+              <div className="flex flex-col items-center justify-center text-[10px] text-gray-400 leading-tight">
+                <div className="flex items-center gap-1 text-blue-500 mb-0.5">
+                  <RefreshCw className="w-3.5 h-3.5 animate-[spin_10s_linear_infinite]" />
+                </div>
+                <span className="font-semibold text-gray-500 dark:text-gray-400 text-[10px]">reCAPTCHA</span>
+                <span className="text-[8px] text-gray-400">Privacy - Terms</span>
+              </div>
+            </div>
+
+            {captchaError && !captchaChecked && (
+              <p className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-error)' }} role="alert">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Please verify that you are not a robot.
+              </p>
+            )}
 
             {/* Submit */}
             <button
@@ -259,11 +374,6 @@ export default function Login() {
               {loading ? (<><Loader2 className="w-4 h-4 animate-spin" /> Signing in...</>) : 'Login'}
             </button>
           </form>
-
-          <p className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            Don't have an account?{' '}
-            <span className="font-semibold hover:underline cursor-pointer" style={{ color: 'var(--color-accent)' }}>Register here</span>
-          </p>
         </div>
       </div>
     </div>
