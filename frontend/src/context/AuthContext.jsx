@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState } from 'react'
 
 const AuthContext = createContext(null)
 
@@ -15,9 +15,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser)
   const [loading, setLoading] = useState(false)
 
-  const login = async (username, password, captchaToken) => {
+  const login = async (username, password) => {
     setLoading(true)
-    // Simulate API call — replace with POST /api/auth/login
     await new Promise(r => setTimeout(r, 800))
 
     if (username && password.length >= 6) {
@@ -28,8 +27,6 @@ export function AuthProvider({ children }) {
         fullName: username.includes('@')
           ? username.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, c => c.toUpperCase())
           : username.replace(/\b\w/g, c => c.toUpperCase()),
-        phone: '',
-        address: '',
       }
       setUser(newUser)
       localStorage.setItem('citizen-portal-user', JSON.stringify(newUser))
@@ -40,36 +37,13 @@ export function AuthProvider({ children }) {
     return { success: false, error: 'Invalid username or password.' }
   }
 
-  const register = async (fullName, email, password) => {
-    setLoading(true)
-    await new Promise(r => setTimeout(r, 800))
-    const newUser = {
-      id: 1,
-      username: email.split('@')[0],
-      email,
-      fullName,
-      phone: '',
-      address: '',
-    }
-    setUser(newUser)
-    localStorage.setItem('citizen-portal-user', JSON.stringify(newUser))
-    setLoading(false)
-    return { success: true }
-  }
-
   const logout = () => {
     setUser(null)
     localStorage.removeItem('citizen-portal-user')
   }
 
-  const updateProfile = (updates) => {
-    const updated = { ...user, ...updates }
-    setUser(updated)
-    localStorage.setItem('citizen-portal-user', JSON.stringify(updated))
-  }
-
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout, updateProfile }}>
+    <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )
