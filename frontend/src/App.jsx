@@ -1,10 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ToastProvider } from './context/ToastContext'
+<<<<<<< HEAD
+=======
+import { ThemeProvider } from './context/ThemeContext'
+import ProtectedRoute from './components/ProtectedRoute'
+>>>>>>> ef61e14e579a35bcff2bc496c5b07fa15665f5a5
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Dashboard from './pages/Dashboard'
+import Welcome from './pages/Welcome'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -66,3 +72,4 @@ export default function App() {
     </ToastProvider>
   )
 }
+

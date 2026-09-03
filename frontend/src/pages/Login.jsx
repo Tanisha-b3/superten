@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { Eye, EyeOff, Shield, Loader2, CheckCircle, AlertCircle, User, Lock, Sparkles, Check, RefreshCw } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -28,7 +29,6 @@ export default function Login() {
 
   const validatePassword = (value) => {
     if (!value) return 'Password is required.'
-    if (value.length < 6) return 'Password must be at least 6 characters.'
     return ''
   }
 

@@ -14,6 +14,8 @@ export default function Dashboard() {
     navigate('/login')
   }
 
+  const userName = user?.fullName || user?.username || 'User'
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Top Navbar */}
