@@ -17,16 +17,16 @@ export function AuthProvider({ children }) {
 
   const login = async (username, password) => {
     setLoading(true)
-    await new Promise(r => setTimeout(r, 800))
+    await new Promise(r => setTimeout(r, 200))
 
-    if (username && password.length >= 6) {
+    if (username.trim() && password.trim()) {
       const newUser = {
         id: 1,
-        username,
+        username: username.trim(),
         email: username.includes('@') ? username : `${username}@citizen.gov.in`,
         fullName: username.includes('@')
           ? username.split('@')[0].replace(/\./g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-          : username.replace(/\b\w/g, c => c.toUpperCase()),
+          : username.trim().replace(/\b\w/g, c => c.toUpperCase()),
       }
       setUser(newUser)
       localStorage.setItem('citizen-portal-user', JSON.stringify(newUser))
@@ -34,7 +34,7 @@ export function AuthProvider({ children }) {
       return { success: true }
     }
     setLoading(false)
-    return { success: false, error: 'Invalid username or password.' }
+    return { success: false, error: 'Please enter a username and password.' }
   }
 
   const logout = () => {
