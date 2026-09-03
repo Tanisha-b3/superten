@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Shield, Loader2, CheckCircle, AlertCircle, User, Lock } from 'lucide-react'
+import { Eye, EyeOff, Shield, Loader2, CheckCircle, AlertCircle, User, Lock, Sun, Moon } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -14,6 +15,7 @@ export default function Login() {
   const [apiError, setApiError] = useState('')
   const { login, loading } = useAuth()
   const { addToast } = useToast()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
   const validateUsername = (value) => {
@@ -29,7 +31,6 @@ export default function Login() {
 
   const validatePassword = (value) => {
     if (!value) return 'Password is required.'
-    if (value.length < 6) return 'Password must be at least 6 characters.'
     return ''
   }
 
@@ -69,8 +70,8 @@ export default function Login() {
 
     const result = await login(username, password)
     if (result.success) {
-      addToast('Login successful! Welcome back.', 'success')
-      setTimeout(() => navigate('/dashboard'), 500)
+      addToast('Login successful!', 'success')
+      navigate('/welcome')
     } else {
       setApiError(result.error)
     }
@@ -108,7 +109,18 @@ export default function Login() {
   const strength = getPasswordStrength()
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <div className="min-h-screen flex items-center justify-center p-4 relative" style={{ backgroundColor: 'var(--color-bg)' }}>
+      {/* Theme toggle button (top right of screen) */}
+      <button
+        onClick={toggleTheme}
+        className="absolute top-4 right-4 p-2.5 rounded-xl border shadow-sm transition-all duration-200 hover:scale-105 flex items-center gap-2 text-xs font-semibold"
+        style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+        aria-label="Toggle light and dark mode"
+      >
+        {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
+        <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+      </button>
+
       <div className="w-full max-w-4xl rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row border animate-scale-in" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
         {/* Left panel */}
         <div className="hidden md:flex md:w-1/2 p-10 flex-col justify-between" style={{ backgroundColor: 'var(--color-primary-dark)' }}>
